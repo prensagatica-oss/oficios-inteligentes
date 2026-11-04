@@ -1,5 +1,7 @@
 import json
 import re
+import time
+import random
 from datetime import date
 
 import requests
@@ -43,11 +45,27 @@ def gemini_analyze(data: bytes, mime: str, api_key: str) -> dict:
         ]}],
         'generationConfig': {'temperature': 0.1, 'responseMimeType': 'application/json', 'maxOutputTokens': 1900}
     }
-    response = requests.post(url, params={'key': api_key}, json=payload, timeout=100)
+    response = None
+    for attempt in range(3):
+        try:
+            response = requests.post(url, headers={'x-goog-api-key': api_key}, json=payload, timeout=100)
+        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+            if attempt == 2:
+                raise RuntimeError('No se pudo contactar a Gemini después de tres intentos. Inténtalo más tarde.')
+            time.sleep(2 ** attempt + random.uniform(0, 0.5))
+            continue
+        if response.status_code in (500, 502, 503, 504) and attempt < 2:
+            time.sleep(2 ** attempt + random.uniform(0, 0.5))
+            continue
+        break
     if response.status_code == 429:
-        raise RuntimeError('Se alcanzó la cuota gratuita de Gemini. Inténtalo más tarde; no se realizó ningún cobro desde la aplicación.')
+        raise RuntimeError('Se alcanzó un límite de solicitudes de Gemini (HTTP 429). Revisa la cuota gratuita en AI Studio; no se harán reintentos automáticos.')
+    if response.status_code == 503:
+        raise RuntimeError('Gemini está temporalmente sobrecargado (HTTP 503). Se intentó tres veces. Prueba más tarde; no cambies tu clave.')
+    if response.status_code in (400, 401, 403, 404):
+        raise RuntimeError(f'Gemini devolvió HTTP {response.status_code}. Revisa los modelos y permisos habilitados para tu proyecto en Google AI Studio.')
     if not response.ok:
-        raise RuntimeError(f'Gemini devolvió HTTP {response.status_code}. Verifica que el modelo esté disponible en tu proyecto y consulta su cuota gratuita en AI Studio.')
+        raise RuntimeError(f'Gemini devolvió HTTP {response.status_code}. Vuelve a intentar más tarde o revisa la disponibilidad del servicio.')
     body = response.json()
     candidates = body.get('candidates', [])
     if not candidates:
