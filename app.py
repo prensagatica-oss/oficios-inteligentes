@@ -12,21 +12,29 @@ st.set_page_config(page_title='Oficios Inteligentes', page_icon='📑', layout='
 MODEL = 'gemini-3.1-flash-lite'
 MAX_BYTES = 10 * 1024 * 1024
 
-PROMPT = '''Eres analista documental del gabinete de una senadora de Chile. Analiza el PDF adjunto únicamente a partir de su contenido. Extrae información verificable. No inventes fechas, folios, respuestas o compromisos.
-Devuelve exclusivamente un objeto JSON con estas claves exactas:
-"tipo_doc" ("Oficio", "Respuesta de Oficio" u "Oficio y Respuesta"),
-"nro_oficio" (texto o ""), "fecha" (YYYY-MM-DD o ""),
-"materia" (resumen de una oración), "destino" (institución destinataria o emisora),
-"resumen_solicitud" (desarrollo detallado de 180 a 300 palabras, proporcional a la información que contiene el documento; si no corresponde, ""),
-"resumen_respuesta" (máximo 65 palabras o "" si no hay respuesta),
-"hallazgo" (dato verificable, con cifra/fecha cuando exista; o ""),
-"potencial_com" ("ALTO", "MEDIO" o "BAJO"),
-"propuesta_com" (una oración, condicional y sin afirmaciones no verificadas),
-"gestion_recomendada" (una gestión administrativa concreta o ""),
-"alertas" (lista de hasta 5 dudas o datos no encontrados).
-Si el documento es solo un oficio enviado, no deduzcas que existe respuesta. Si aparecen múltiples números de oficio y no se puede decidir el principal, deja nro_oficio vacío y explica en alertas.
-Para "resumen_solicitud", redacta un texto completo, robusto y útil para seguimiento parlamentario. Explica en prosa clara: (1) el problema o contexto que motiva el oficio, (2) la petición específica y sus destinatarios, (3) los antecedentes técnicos, jurídicos o presupuestarios mencionados, (4) localidades, fechas, cifras y organismos relevantes, y (5) las medidas, informes o plazos solicitados. No conviertas estos puntos en una lista mecánica; organízalos en 2 a 4 párrafos según el contenido. Identifica claramente lo pedido frente a lo que el documento solo relata. No agregues información para alcanzar la extensión: si el oficio es breve, el resumen también puede serlo. No repitas ni infieras hechos que no estén expresamente en el PDF.
-Prioriza precisión por encima de interpretaciones políticas o comunicacionales. No uses información externa al PDF.'''
+PROMPT = '''Eres analista documental técnico, jurídico, presupuestario y comunicacional del gabinete de una senadora de Chile. Tu estándar editorial es el de una matriz ejecutiva de seguimiento de oficios: análisis sustantivo, trazabilidad documental, prudencia en las conclusiones y gestiones accionables.
+
+Analiza ÚNICAMENTE el PDF adjunto. NO busques fuentes externas, NO inventes antecedentes, NO presumas que una solicitud fue contestada, NO conviertas afirmaciones de un oficio en hechos institucionalmente corroborados. Distingue siempre: lo que solicita la senadora, lo que afirma la institución, hechos documentados, contradicciones, vacíos y recomendaciones propias. Cuando el contenido sea insuficiente, indica expresamente "No consta en el documento" o "Pendiente de verificar" y acorta el campo. Si el PDF contiene más de un oficio o respuesta, identifica los folios por separado y advierte sobre la relación documental.
+
+Devuelve ÚNICAMENTE un objeto JSON válido, sin markdown, con estas claves exactas (todos los campos son texto salvo "alertas", que es una lista):
+"tipo_doc": "Oficio", "Respuesta de Oficio" u "Oficio y Respuesta".
+"nro_oficio": folio de la solicitud parlamentaria (si no consta con certeza, "").
+"fecha": fecha del documento principal en YYYY-MM-DD (o "").
+"materia": objeto del oficio en 1 a 3 oraciones precisas.
+"destino": órgano destinatario del oficio o emisor de la respuesta, identificado con claridad.
+"resumen_solicitud": 180 a 300 palabras orientativas, proporcionales a la evidencia. En 2 a 4 párrafos, desarrollar problema y contexto, solicitud exacta, antecedentes técnicos/jurídicos/presupuestarios, localidades, cifras, fechas, organismos, medidas o información pedida y finalidad administrativa. Si solo se adjunta respuesta, identificar si la solicitud original consta literalmente o solo es reconstruible parcialmente.
+"resumen_respuesta": 180 a 320 palabras orientativas SI el PDF contiene contestación institucional. Describir organismo y folio de respuesta, qué responde a cada pregunta, cifras y periodos, decisiones/compromisos y sus condiciones, trámites, fechas, anexos, divergencias y solicitudes sin respuesta. Distinguir asignación de transferencia, proyecto propuesto de proyecto financiado, declaración institucional de cumplimiento efectivo. Si solo hay oficio, devolver "".
+"analisis_ejecutivo": 220 a 380 palabras orientativas con encabezados breves dentro del texto: SOLICITUD DE LA SENADORA; RESPUESTA DEL ORGANISMO (solo si existe); HALLAZGO Y VACÍOS. Reconstruir el caso con rigor, límites de evidencia, contradicciones, variables presupuestarias, estado verificable y valor para el seguimiento. Evitar duplicación mecánica y extender solo cuando haya sustancia.
+"hallazgo": 90 a 170 palabras orientativas sobre el dato central verificable, sus alcances y límites; si falta documentación, detallar qué no quedó acreditado. Citar internamente folios/fechas/páginas del PDF cuando puedan identificarse con certeza.
+"potencial_com": exclusivamente "ALTO", "MEDIO" o "BAJO" como clasificación preliminar.
+"fundamento_potencial": 100 a 180 palabras que expliquen relevancia regional/nacional, novedad, interés ciudadano, posibilidad de comunicar y condiciones que limitan su difusión. No confundir potencial con hecho demostrado ni riesgo con irregularidad.
+"propuesta_com": 130 a 240 palabras orientativas. Proponer formato (reel, comunicado, nota o reserva), enfoque/titular tentativo, 3 a 5 mensajes o puntos narrativos, datos que podrían exhibirse, verificaciones PREVIAS y advertencias de qué no afirmar. Si falta evidencia, recomendar no difundir por ahora y explicar por qué.
+"gestion_recomendada": 150 a 260 palabras, separando GESTIONES PREVIAS y GESTIONES POSTERIORES. Indicar organismos competentes, documentos e indicadores concretos por solicitar, contraste de cifras, verificación territorial, plazos solo si constan y alternativas de seguimiento. No afirmar que las gestiones ya ocurrieron.
+"recomendacion_ejecutiva": 100 a 180 palabras con decisión práctica y prioridad (alta/media/baja), su fundamento, condición necesaria para comunicar o escalar, y próximo paso verificable.
+"estado_gestion": 70 a 150 palabras. Clasificación administrativa propuesta conforme al PDF: solicitud sin respuesta acreditada; respuesta recibida; respuesta parcial; información contradictoria; u otro estado claramente documentado. Identificar lo pendiente y el siguiente hito. No afirmar que se envió un oficio complementario si no consta.
+"alertas": lista de hasta 8 observaciones verificables: datos faltantes, contradicciones, folios ambiguos, cifras incomparables, información que requiere cotejo o riesgo de atribución.
+
+Estos rangos son orientativos, NO cuotas de relleno. En oficios de una página o respuestas muy breves, sintetiza cuanto permita la evidencia. Evita fórmulas vacías, retórica, imputaciones de responsabilidades y conclusiones políticas sin sustento. Cuando corresponda, separa hechos, inferencias y propuestas. Escribe en español claro y útil para imprimir, revisar y entregar a jefatura.'''
 
 
 def key():
@@ -44,7 +52,7 @@ def gemini_analyze(data: bytes, mime: str, api_key: str) -> dict:
             {'text': PROMPT},
             {'inline_data': {'mime_type': mime, 'data': base64.b64encode(data).decode('ascii')}}
         ]}],
-        'generationConfig': {'temperature': 0.1, 'responseMimeType': 'application/json', 'maxOutputTokens': 3400}
+        'generationConfig': {'temperature': 0.1, 'responseMimeType': 'application/json', 'maxOutputTokens': 7500}
     }
     response = None
     for attempt in range(3):
@@ -122,15 +130,22 @@ if 'resultado' in st.session_state and upload and st.session_state.get('archivo_
         destino = st.text_input('Destinatario / institución', str(r.get('destino', '')))
     with col3:
         potencial = st.selectbox('Potencial comunicacional', ['ALTO', 'MEDIO', 'BAJO'], index=['ALTO', 'MEDIO', 'BAJO'].index(r.get('potencial_com')) if r.get('potencial_com') in ['ALTO', 'MEDIO', 'BAJO'] else 2)
-    materia = st.text_area('Materia', str(r.get('materia', '')), height=80)
-    solicitud = st.text_area('Resumen detallado del oficio / solicitud', str(r.get('resumen_solicitud', '')), height=260)
-    respuesta = st.text_area('Resumen de respuesta', str(r.get('resumen_respuesta', '')), height=100)
-    hallazgo = st.text_area('Hallazgo', str(r.get('hallazgo', '')), height=80)
-    propuesta = st.text_area('Propuesta comunicacional', str(r.get('propuesta_com', '')), height=80)
-    gestion = st.text_area('Gestión recomendada', str(r.get('gestion_recomendada', '')), height=80)
+    materia = st.text_area('Materia', str(r.get('materia', '')), height=90)
+    st.markdown('### Análisis documental')
+    solicitud = st.text_area('Resumen detallado del oficio / solicitud', str(r.get('resumen_solicitud', '')), height=280)
+    respuesta = st.text_area('Resumen detallado de la respuesta institucional', str(r.get('resumen_respuesta', '')), height=280)
+    analisis = st.text_area('ANÁLISIS EJECUTIVO', str(r.get('analisis_ejecutivo', '')), height=330)
+    hallazgo = st.text_area('Hallazgo principal y vacíos documentales', str(r.get('hallazgo', '')), height=180)
+    st.markdown('### Evaluación comunicacional')
+    fundamento = st.text_area('Fundamento del potencial comunicacional', str(r.get('fundamento_potencial', '')), height=190)
+    propuesta = st.text_area('PROPUESTA COMUNICACIONAL', str(r.get('propuesta_com', '')), height=250)
+    st.markdown('### Seguimiento y decisión ejecutiva')
+    gestion = st.text_area('GESTIONES RECOMENDADAS', str(r.get('gestion_recomendada', '')), height=260)
+    recomendacion = st.text_area('RECOMENDACIÓN EJECUTIVA', str(r.get('recomendacion_ejecutiva', '')), height=200)
+    estado_gestion = st.text_area('ESTADO DE GESTIÓN', str(r.get('estado_gestion', '')), height=180)
     alertas = r.get('alertas', [])
     if alertas:
         st.warning('Observaciones de verificación: ' + ' · '.join(str(x) for x in alertas))
-    salida = dict(tipo_doc=tipo, nro_oficio=nro, fecha=fecha, materia=materia, destino=destino, resumen_solicitud=solicitud, resumen_respuesta=respuesta, hallazgo=hallazgo, potencial_com=potencial, propuesta_com=propuesta, gestion_recomendada=gestion, alertas=alertas)
+    salida = dict(tipo_doc=tipo, nro_oficio=nro, fecha=fecha, materia=materia, destino=destino, resumen_solicitud=solicitud, resumen_respuesta=respuesta, analisis_ejecutivo=analisis, hallazgo=hallazgo, potencial_com=potencial, fundamento_potencial=fundamento, propuesta_com=propuesta, gestion_recomendada=gestion, recomendacion_ejecutiva=recomendacion, estado_gestion=estado_gestion, alertas=alertas)
     st.download_button('Descargar análisis revisado (JSON)', data=json.dumps(salida, ensure_ascii=False, indent=2), file_name='analisis_oficio.json', mime='application/json')
     st.caption('La sincronización con Buzon_Revision y Base_Oficios se incorporará después de validar esta etapa de análisis.')
