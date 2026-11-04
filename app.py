@@ -17,7 +17,7 @@ Devuelve exclusivamente un objeto JSON con estas claves exactas:
 "tipo_doc" ("Oficio", "Respuesta de Oficio" u "Oficio y Respuesta"),
 "nro_oficio" (texto o ""), "fecha" (YYYY-MM-DD o ""),
 "materia" (resumen de una oración), "destino" (institución destinataria o emisora),
-"resumen_solicitud" (máximo 55 palabras o ""),
+"resumen_solicitud" (desarrollo detallado de 180 a 300 palabras, proporcional a la información que contiene el documento; si no corresponde, ""),
 "resumen_respuesta" (máximo 65 palabras o "" si no hay respuesta),
 "hallazgo" (dato verificable, con cifra/fecha cuando exista; o ""),
 "potencial_com" ("ALTO", "MEDIO" o "BAJO"),
@@ -25,6 +25,7 @@ Devuelve exclusivamente un objeto JSON con estas claves exactas:
 "gestion_recomendada" (una gestión administrativa concreta o ""),
 "alertas" (lista de hasta 5 dudas o datos no encontrados).
 Si el documento es solo un oficio enviado, no deduzcas que existe respuesta. Si aparecen múltiples números de oficio y no se puede decidir el principal, deja nro_oficio vacío y explica en alertas.
+Para "resumen_solicitud", redacta un texto completo, robusto y útil para seguimiento parlamentario. Explica en prosa clara: (1) el problema o contexto que motiva el oficio, (2) la petición específica y sus destinatarios, (3) los antecedentes técnicos, jurídicos o presupuestarios mencionados, (4) localidades, fechas, cifras y organismos relevantes, y (5) las medidas, informes o plazos solicitados. No conviertas estos puntos en una lista mecánica; organízalos en 2 a 4 párrafos según el contenido. Identifica claramente lo pedido frente a lo que el documento solo relata. No agregues información para alcanzar la extensión: si el oficio es breve, el resumen también puede serlo. No repitas ni infieras hechos que no estén expresamente en el PDF.
 Prioriza precisión por encima de interpretaciones políticas o comunicacionales. No uses información externa al PDF.'''
 
 
@@ -43,7 +44,7 @@ def gemini_analyze(data: bytes, mime: str, api_key: str) -> dict:
             {'text': PROMPT},
             {'inline_data': {'mime_type': mime, 'data': base64.b64encode(data).decode('ascii')}}
         ]}],
-        'generationConfig': {'temperature': 0.1, 'responseMimeType': 'application/json', 'maxOutputTokens': 1900}
+        'generationConfig': {'temperature': 0.1, 'responseMimeType': 'application/json', 'maxOutputTokens': 3400}
     }
     response = None
     for attempt in range(3):
@@ -122,7 +123,7 @@ if 'resultado' in st.session_state and upload and st.session_state.get('archivo_
     with col3:
         potencial = st.selectbox('Potencial comunicacional', ['ALTO', 'MEDIO', 'BAJO'], index=['ALTO', 'MEDIO', 'BAJO'].index(r.get('potencial_com')) if r.get('potencial_com') in ['ALTO', 'MEDIO', 'BAJO'] else 2)
     materia = st.text_area('Materia', str(r.get('materia', '')), height=80)
-    solicitud = st.text_area('Resumen de solicitud', str(r.get('resumen_solicitud', '')), height=100)
+    solicitud = st.text_area('Resumen detallado del oficio / solicitud', str(r.get('resumen_solicitud', '')), height=260)
     respuesta = st.text_area('Resumen de respuesta', str(r.get('resumen_respuesta', '')), height=100)
     hallazgo = st.text_area('Hallazgo', str(r.get('hallazgo', '')), height=80)
     propuesta = st.text_area('Propuesta comunicacional', str(r.get('propuesta_com', '')), height=80)
