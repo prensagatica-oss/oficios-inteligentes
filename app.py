@@ -7,7 +7,7 @@ import streamlit as st
 
 st.set_page_config(page_title='Oficios Inteligentes', page_icon='📑', layout='wide')
 
-MODEL = 'gemini-2.5-flash-lite'
+MODEL = 'gemini-3.1-flash-lite'
 MAX_BYTES = 10 * 1024 * 1024
 
 PROMPT = '''Eres analista documental del gabinete de una senadora de Chile. Analiza el PDF adjunto únicamente a partir de su contenido. Extrae información verificable. No inventes fechas, folios, respuestas o compromisos.
@@ -47,7 +47,7 @@ def gemini_analyze(data: bytes, mime: str, api_key: str) -> dict:
     if response.status_code == 429:
         raise RuntimeError('Se alcanzó la cuota gratuita de Gemini. Inténtalo más tarde; no se realizó ningún cobro desde la aplicación.')
     if not response.ok:
-        raise RuntimeError(f'Gemini devolvió HTTP {response.status_code}. Revisa la clave, permisos y cuota del proyecto. No se mostrará el detalle por seguridad.')
+        raise RuntimeError(f'Gemini devolvió HTTP {response.status_code}. Verifica que el modelo esté disponible en tu proyecto y consulta su cuota gratuita en AI Studio.')
     body = response.json()
     candidates = body.get('candidates', [])
     if not candidates:
