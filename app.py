@@ -61,7 +61,10 @@ st.caption('Gabinete senatorial · Prototipo de ingreso y análisis documental c
 
 with st.sidebar:
     st.header('Estado de conexión')
-    st.success('Gemini configurado' if key() else 'Gemini pendiente de configurar') if key() else st.warning('Gemini pendiente de configurar')
+    if key():
+        st.success('Gemini configurado')
+    else:
+        st.warning('Gemini pendiente de configurar')
     st.info('Esta primera versión solo analiza: NO escribe en Google Sheets ni en Drive.')
     st.markdown('[Abrir Base de Oficios](https://docs.google.com/spreadsheets/d/1nevQVu-D-er9Hrw1YIJVEyj5gK5_lm3By1tvmrzAaoM/edit)')
     st.markdown('[Carpeta de recepción](https://drive.google.com/drive/folders/1PEhTbJHASJIlng8VpMiYgAm0OgTXgB43)')
